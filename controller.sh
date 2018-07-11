@@ -307,3 +307,134 @@ openstack compute service list
 openstack catalog list
 openstack image list
 nova-status upgrade check
+
+#
+# Neutron
+#
+mysql -sfu root <<EOF
+CREATE DATABASE neutron;
+GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY '$NEUTRON_DBPASS';
+GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' IDENTIFIED BY '$NEUTRON_DBPASS';
+EOF
+source ~/admin-openrc
+openstack user create --domain default --password $NEUTRON_PASS neutron
+openstack role add --project service --user neutron admin
+openstack service create --name neutron --description "OpenStack Networking" network
+openstack endpoint create --region RegionOne network public http://$IP_ADDR:9696
+openstack endpoint create --region RegionOne network internal http://$IP_ADDR:9696
+openstack endpoint create --region RegionOne network admin http://$IP_ADDR:9696
+apt -y install neutron-server neutron-plugin-ml2 \
+  neutron-linuxbridge-agent neutron-l3-agent neutron-dhcp-agent \
+  neutron-metadata-agent
+
+crudini --merge /etc/neutron/neutron.conf <<EOF
+[database]
+connection = mysql+pymysql://neutron:$NEUTRON_DBPASS@controller/neutron
+
+[DEFAULT]
+core_plugin = ml2
+service_plugins = router
+allow_overlapping_ips = true
+transport_url = rabbit://openstack:$RABBIT_PASS@controller
+auth_strategy = keystone
+notify_nova_on_port_status_changes = true
+notify_nova_on_port_data_changes = true
+
+[keystone_authtoken]
+auth_url = http://controller:5000
+memcached_servers = controller:11211
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+project_name = service
+username = neutron
+password = $NEUTRON_PASS
+
+[nova]
+auth_url = http://controller:5000
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+region_name = RegionOne
+project_name = service
+username = nova
+password = $NOVA_PASS
+EOF
+
+crudini --merge /etc/neutron/plugins/ml2/ml2_conf.ini <<EOF
+[ml2]
+type_drivers = flat,vlan,vxlan
+tenant_network_types = vxlan
+mechanism_drivers = linuxbridge,l2population
+extension_drivers = port_security
+
+[ml2_type_flat]
+flat_networks = provider
+
+[ml2_type_vxlan]
+vni_ranges = 1:1000
+
+[securitygroup]
+enable_ipset = true
+EOF
+
+export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
+crudini --merge /etc/neutron/plugins/ml2/linuxbridge_agent.ini <<EOF
+[linux_bridge]
+physical_interface_mappings = provider:$PROVIDER_INTERFACE_NAME
+
+[vxlan]
+enable_vxlan = true
+local_ip = $IP_ADDR
+l2_population = true
+
+[securitygroup]
+enable_security_group = true
+firewall_driver = neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
+EOF
+
+crudini --merge /etc/neutron/l3_agent.ini <<EOF
+[DEFAULT]
+interface_driver = linuxbridge
+EOF
+
+crudini --merge /etc/neutron/dhcp_agent.ini <<EOF
+[DEFAULT]
+interface_driver = linuxbridge
+dhcp_driver = neutron.agent.linux.dhcp.Dnsmasq
+enable_isolated_metadata = true
+EOF
+
+crudini --merge /etc/neutron/metadata_agent.ini <<EOF
+[DEFAULT]
+nova_metadata_host = controller
+metadata_proxy_shared_secret = $METADATA_SECRET
+EOF
+
+crudini --merge /etc/nova/nova.conf <<EOF
+[neutron]
+url = http://controller:9696
+auth_url = http://controller:5000
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+region_name = RegionOne
+project_name = service
+username = neutron
+password = $NEUTRON_PASS
+service_metadata_proxy = true
+metadata_proxy_shared_secret = $METADATA_SECRET
+EOF
+
+su -s /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf \
+  --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+service nova-api restart
+service neutron-server restart
+service neutron-linuxbridge-agent restart
+service neutron-dhcp-agent restart
+service neutron-metadata-agent restart
+service neutron-l3-agent restart
+
+source ~/admin-openrc
+openstack extension list --network
+openstack network agent list

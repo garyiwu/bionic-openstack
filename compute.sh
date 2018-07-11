@@ -64,3 +64,55 @@ EOF
 crudini --del /etc/nova/nova.conf DEFAULT log_dir
 service nova-compute restart
 
+#
+# Neutron
+#
+apt -y install neutron-linuxbridge-agent
+
+crudini --del /etc/neutron/neutron.conf database connection
+crudini --merge /etc/neutron/neutron.conf <<EOF
+[DEFAULT]
+transport_url = rabbit://openstack:$RABBIT_PASS@controller
+auth_strategy = keystone
+
+[keystone_authtoken]
+auth_url = http://controller:5000
+memcached_servers = controller:11211
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+project_name = service
+username = neutron
+password = $NEUTRON_PASS
+EOF
+
+export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
+crudini --merge /etc/neutron/plugins/ml2/linuxbridge_agent.ini <<EOF
+[linux_bridge]
+physical_interface_mappings = provider:$PROVIDER_INTERFACE_NAME
+
+[vxlan]
+enable_vxlan = true
+local_ip = $IP_ADDR
+l2_population = true
+
+[securitygroup]
+enable_security_group = true
+firewall_driver = neutron.agent.linux.iptables_firewall.IptablesFirewallDriver
+EOF
+
+crudini --merge /etc/nova/nova.conf <<EOF
+[neutron]
+# ...
+url = http://controller:9696
+auth_url = http://controller:5000
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+region_name = RegionOne
+project_name = service
+username = neutron
+password = $NEUTRON_PASS
+EOF
+service nova-compute restart
+service neutron-linuxbridge-agent restart
