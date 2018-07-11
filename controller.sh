@@ -438,3 +438,12 @@ service neutron-l3-agent restart
 source ~/admin-openrc
 openstack extension list --network
 openstack network agent list
+
+#
+# Horizon
+#
+apt -y install openstack-dashboard
+sed -i 's/127\.0\.0\.1/controller/g' /etc/openstack-dashboard/local_settings.py
+sed -i 's/^[# ]*OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT.*/OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True/g' /etc/openstack-dashboard/local_settings.py
+sed -i 's/^[# ]*OPENSTACK_KEYSTONE_DEFAULT_DOMAIN.*/OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = "Default"/g' /etc/openstack-dashboard/local_settings.py
+sed -i 's/^[# ]*OPENSTACK_KEYSTONE_DEFAULT_ROLE.*/OPENSTACK_KEYSTONE_DEFAULT_ROLE = "user"/g' /etc/openstack-dashboard/local_settings.py
