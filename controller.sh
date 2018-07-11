@@ -208,3 +208,102 @@ openstack image create "cirros" \
   --disk-format qcow2 --container-format bare \
   --public
 openstack image list
+
+#
+# Nova
+#
+mysql -sfu root <<EOF
+CREATE DATABASE nova_api;
+CREATE DATABASE nova;
+CREATE DATABASE nova_cell0;
+GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'localhost' IDENTIFIED BY '$NOVA_DBPASS';
+GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'%' IDENTIFIED BY '$NOVA_DBPASS';
+GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY '$NOVA_DBPASS';
+GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY '$NOVA_DBPASS';
+GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'localhost' IDENTIFIED BY '$NOVA_DBPASS';
+GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'%' IDENTIFIED BY '$NOVA_DBPASS';
+EOF
+
+source ~/admin-openrc
+openstack user create --domain default --password $NOVA_PASS nova
+openstack role add --project service --user nova admin
+openstack service create --name nova --description "OpenStack Compute" compute
+openstack endpoint create --region RegionOne compute public http://$IP_ADDR:8774/v2.1
+openstack endpoint create --region RegionOne compute internal http://$IP_ADDR:8774/v2.1
+openstack endpoint create --region RegionOne compute admin http://$IP_ADDR:8774/v2.1
+openstack user create --domain default --password $PLACEMENT_PASS placement
+openstack role add --project service --user placement admin
+openstack service create --name placement --description "Placement API" placement
+openstack endpoint create --region RegionOne placement public http://$IP_ADDR:8778
+openstack endpoint create --region RegionOne placement internal http://$IP_ADDR:8778
+openstack endpoint create --region RegionOne placement admin http://$IP_ADDR:8778
+apt -y install nova-api nova-conductor nova-consoleauth nova-novncproxy nova-scheduler nova-placement-api
+
+crudini --merge /etc/nova/nova.conf <<EOF
+[api_database]
+connection = mysql+pymysql://nova:$NOVA_DBPASS@controller/nova_api
+
+[database]
+connection = mysql+pymysql://nova:$NOVA_DBPASS@controller/nova
+
+[DEFAULT]
+transport_url = rabbit://openstack:$RABBIT_PASS@controller
+my_ip = $IP_ADDR
+use_neutron = True
+firewall_driver = nova.virt.firewall.NoopFirewallDriver
+
+[api]
+auth_strategy = keystone
+
+[keystone_authtoken]
+auth_url = http://controller:5000/v3
+memcached_servers = controller:11211
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+project_name = service
+username = nova
+password = $NOVA_PASS
+
+[vnc]
+enabled = true
+server_listen = \$my_ip
+server_proxyclient_address = \$my_ip
+
+[glance]
+api_servers = http://controller:9292
+
+[oslo_concurrency]
+lock_path = /var/lib/nova/tmp
+
+[placement]
+os_region_name = RegionOne
+project_domain_name = Default
+project_name = service
+auth_type = password
+user_domain_name = Default
+auth_url = http://controller:5000/v3
+username = placement
+password = $PLACEMENT_PASS
+
+[scheduler]
+discover_hosts_in_cells_interval = 300
+EOF
+crudini --del /etc/nova/nova.conf DEFAULT log_dir
+su -s /bin/sh -c "nova-manage api_db sync" nova
+su -s /bin/sh -c "nova-manage cell_v2 map_cell0" nova
+su -s /bin/sh -c "nova-manage cell_v2 create_cell --name=cell1 --verbose" nova
+su -s /bin/sh -c "nova-manage db sync" nova
+nova-manage cell_v2 list_cells
+service nova-api restart
+service nova-consoleauth restart
+service nova-scheduler restart
+service nova-conductor restart
+service nova-novncproxy restart
+
+source ~/admin-openrc
+openstack compute service list --service nova-compute
+openstack compute service list
+openstack catalog list
+openstack image list
+nova-status upgrade check
