@@ -60,10 +60,6 @@ user_domain_name = Default
 auth_url = http://controller:5000/v3
 username = placement
 password = $PLACEMENT_PASS
-
-[filter_scheduler]
-available_filters = nova.scheduler.filters.all_filters
-enabled_filters = RetryFilter, AvailabilityZoneFilter, ComputeCapabilitiesFilter, ImagePropertiesFilter, ServerGroupAntiAffinityFilter, ServerGroupAffinityFilter, NUMATopologyFilter
 EOF
 crudini --del /etc/nova/nova.conf DEFAULT log_dir
 service nova-compute restart
