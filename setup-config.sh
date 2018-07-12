@@ -37,7 +37,7 @@ openstack keypair list
 openstack network list
 export NET_ID=$(openstack network list | awk '/ provider / { print $2 }')
 openstack stack create -t demo-template.yml --parameter "NetID=$NET_ID" stack
-sleep 30
+sleep 1m
 openstack stack list
 openstack stack output show --all stack
 openstack server list
