@@ -287,7 +287,12 @@ username = placement
 password = $PLACEMENT_PASS
 
 [scheduler]
+driver = filter_scheduler
 discover_hosts_in_cells_interval = 300
+
+[filter_scheduler]
+available_filters = nova.scheduler.filters.all_filters
+enabled_filters = RetryFilter, AvailabilityZoneFilter, ComputeFilter, ComputeCapabilitiesFilter, ImagePropertiesFilter, ServerGroupAntiAffinityFilter, ServerGroupAffinityFilter, NUMATopologyFilter, AggregateInstanceExtraSpecsFilter
 EOF
 crudini --del /etc/nova/nova.conf DEFAULT log_dir
 su -s /bin/sh -c "nova-manage api_db sync" nova
