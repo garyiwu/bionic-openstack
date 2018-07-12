@@ -571,3 +571,6 @@ service heat-engine restart
 
 source ~/admin-openrc
 openstack orchestration service list
+
+apt -y install python-heat-dashboard
+service apache2 restart
