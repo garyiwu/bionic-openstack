@@ -103,7 +103,6 @@ EOF
 
 crudini --merge /etc/nova/nova.conf <<EOF
 [neutron]
-# ...
 url = http://controller:9696
 auth_url = http://controller:5000
 auth_type = password
