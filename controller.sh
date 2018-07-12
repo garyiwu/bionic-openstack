@@ -30,7 +30,7 @@ EOF
 
 service mysql restart
 
-mysql -sfu root <<EOF
+mysql -fu root <<EOF
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
 DROP DATABASE IF EXISTS test;
@@ -91,7 +91,7 @@ systemctl start etcd
 #
 # Keystone
 #
-mysql -sfu root <<EOF
+mysql -fu root <<EOF
 CREATE DATABASE keystone;
 GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY '$KEYSTONE_DBPASS';
 GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY '$KEYSTONE_DBPASS';
@@ -144,7 +144,7 @@ openstack token issue
 #
 # Glance
 #
-mysql -sfu root <<EOF
+mysql -fu root <<EOF
 CREATE DATABASE glance;
 GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY '$GLANCE_DBPASS';
 GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY '$GLANCE_DBPASS';
@@ -212,7 +212,7 @@ openstack image list
 #
 # Nova
 #
-mysql -sfu root <<EOF
+mysql -fu root <<EOF
 CREATE DATABASE nova_api;
 CREATE DATABASE nova;
 CREATE DATABASE nova_cell0;
@@ -311,7 +311,7 @@ nova-status upgrade check
 #
 # Neutron
 #
-mysql -sfu root <<EOF
+mysql -fu root <<EOF
 CREATE DATABASE neutron;
 GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY '$NEUTRON_DBPASS';
 GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' IDENTIFIED BY '$NEUTRON_DBPASS';
@@ -447,3 +447,59 @@ sed -i 's/127\.0\.0\.1/controller/g' /etc/openstack-dashboard/local_settings.py
 sed -i 's/^[# ]*OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT.*/OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True/g' /etc/openstack-dashboard/local_settings.py
 sed -i 's/^[# ]*OPENSTACK_KEYSTONE_DEFAULT_DOMAIN.*/OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = "Default"/g' /etc/openstack-dashboard/local_settings.py
 sed -i 's/^[# ]*OPENSTACK_KEYSTONE_DEFAULT_ROLE.*/OPENSTACK_KEYSTONE_DEFAULT_ROLE = "user"/g' /etc/openstack-dashboard/local_settings.py
+service apache2 reload
+
+#
+# Cinder
+#
+mysql -fu root <<EOF
+CREATE DATABASE cinder;
+GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'localhost' IDENTIFIED BY '$CINDER_DBPASS';
+GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'%' IDENTIFIED BY '$CINDER_DBPASS';
+EOF
+
+source ~/admin-openrc
+openstack user create --domain default --password $CINDER_PASS cinder
+openstack role add --project service --user cinder admin
+openstack service create --name cinderv2 --description "OpenStack Block Storage" volumev2
+openstack service create --name cinderv3 --description "OpenStack Block Storage" volumev3
+openstack endpoint create --region RegionOne volumev2 public http://$IP_ADDR:8776/v2/%\(project_id\)s
+openstack endpoint create --region RegionOne volumev2 internal http://$IP_ADDR:8776/v2/%\(project_id\)s
+openstack endpoint create --region RegionOne volumev2 admin http://$IP_ADDR:8776/v2/%\(project_id\)s
+openstack endpoint create --region RegionOne volumev3 public http://$IP_ADDR:8776/v3/%\(project_id\)s
+openstack endpoint create --region RegionOne volumev3 internal http://$IP_ADDR:8776/v3/%\(project_id\)s
+openstack endpoint create --region RegionOne volumev3 admin http://$IP_ADDR:8776/v3/%\(project_id\)s
+apt -y install cinder-api cinder-scheduler
+
+crudini --merge /etc/cinder/cinder.conf <<EOF
+[database]
+connection = mysql+pymysql://cinder:$CINDER_DBPASS@controller/cinder
+
+[DEFAULT]
+transport_url = rabbit://openstack:$RABBIT_PASS@controller
+auth_strategy = keystone
+my_ip = $IP_ADDR
+
+[keystone_authtoken]
+auth_url = http://controller:5000
+memcached_servers = controller:11211
+auth_type = password
+project_domain_id = default
+user_domain_id = default
+project_name = service
+username = cinder
+password = $CINDER_PASS
+
+[oslo_concurrency]
+lock_path = /var/lib/cinder/tmp
+EOF
+su -s /bin/sh -c "cinder-manage db sync" cinder
+
+crudini --merge /etc/nova/nova.conf <<EOF
+[cinder]
+os_region_name = RegionOne
+EOF
+service nova-api restart
+service cinder-scheduler restart
+service apache2 restart
+openstack volume service list
