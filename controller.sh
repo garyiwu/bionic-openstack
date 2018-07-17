@@ -14,12 +14,12 @@ export DEBIAN_FRONTEND=noninteractive
 
 source passwords.sh
 
-apt -y install python3-openstackclient crudini
+apt -y install python-openstackclient crudini
 
 #
 # MariaDB
 #
-apt -y install mariadb-server python3-pymysql
+apt -y install mariadb-server python-pymysql
 
 cat > /etc/mysql/mariadb.conf.d/99-openstack.cnf <<EOF
 [mysqld]
@@ -54,7 +54,7 @@ rabbitmqctl set_permissions openstack ".*" ".*" ".*"
 #
 # Memcached
 #
-apt -y install memcached python3-memcache
+apt -y install memcached python-memcache
 sed -i "s/127\.0\.0\.1/$IP_ADDR/g" /etc/memcached.conf
 service memcached restart
 sleep 10s

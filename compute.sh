@@ -13,7 +13,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 source passwords.sh
 
-apt -y install python3-openstackclient crudini
+apt -y install python-openstackclient crudini
 
 #
 # Nova
