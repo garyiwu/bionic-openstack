@@ -56,3 +56,6 @@ EOF
 
 service tgt restart
 service cinder-volume restart
+
+cd /etc
+git commit -a -m "cinder installation"
