@@ -47,6 +47,7 @@ EOF
 # RabbitMQ
 #
 apt -y install rabbitmq-server
+sleep 10s
 rabbitmqctl add_user openstack $RABBIT_PASS
 rabbitmqctl set_permissions openstack ".*" ".*" ".*"
 
