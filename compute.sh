@@ -117,3 +117,6 @@ password = $NEUTRON_PASS
 EOF
 service nova-compute restart
 service neutron-linuxbridge-agent restart
+
+cd /etc
+git commit -a -m "initial openstack installation"
