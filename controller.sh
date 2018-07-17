@@ -5,7 +5,7 @@ export PROVIDER_INTERFACE_NAME=enp0s8
 
 
 if [ "$#" -ne 1 ]; then
-    export IP_ADDR=$(hostname -I)
+    export IP_ADDR=$(hostname -I | tr -d '[:space:]')
 else
     export IP_ADDR=$1
 fi
@@ -33,7 +33,7 @@ character-set-server = utf8
 EOF
 
 service mysql restart
-sleep 30s
+sleep 10s
 
 mysql -fu root <<EOF
 DELETE FROM mysql.user WHERE User='';
@@ -116,7 +116,7 @@ keystone-manage bootstrap --bootstrap-password $ADMIN_PASS \
   --bootstrap-region-id RegionOne
 sed -i '/ServerRoot/a ServerName controller' /etc/apache2/apache2.conf
 service apache2 restart
-sleep 30s
+sleep 10s
 
 
 cat > ~/admin-openrc <<EOF

@@ -4,7 +4,7 @@
 export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
 
 if [ "$#" -ne 1 ]; then
-    export IP_ADDR=$(hostname -I)
+    export IP_ADDR=$(hostname -I | tr -d '[:space:]')
 else
     export IP_ADDR=$1
 fi
