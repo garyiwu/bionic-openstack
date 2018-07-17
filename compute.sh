@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 #export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
-export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
+export PROVIDER_INTERFACE_NAME=eno2
 
 if [ "$#" -ne 1 ]; then
     export IP_ADDR=$(hostname -I | tr -d '[:space:]')
