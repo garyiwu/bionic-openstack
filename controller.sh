@@ -29,6 +29,7 @@ character-set-server = utf8
 EOF
 
 service mysql restart
+sleep 30s
 
 mysql -fu root <<EOF
 DELETE FROM mysql.user WHERE User='';
@@ -51,6 +52,7 @@ rabbitmqctl set_permissions openstack ".*" ".*" ".*"
 apt -y install memcached python3-memcache
 sed -i "s/127\.0\.0\.1/$IP_ADDR/g" /etc/memcached.conf
 service memcached restart
+sleep 10s
 
 #
 # etcd
@@ -86,7 +88,7 @@ WantedBy=multi-user.target
 EOF
 systemctl enable etcd
 systemctl start etcd
-
+sleep 10s
 
 #
 # Keystone
@@ -109,7 +111,6 @@ keystone-manage bootstrap --bootstrap-password $ADMIN_PASS \
   --bootstrap-region-id RegionOne
 sed -i '/ServerRoot/a ServerName controller' /etc/apache2/apache2.conf
 service apache2 restart
-
 sleep 30s
 
 
@@ -203,6 +204,7 @@ EOF
 su -s /bin/sh -c "glance-manage db_sync" glance
 service glance-registry restart
 service glance-api restart
+sleep 10s
 
 source ~/admin-openrc
 
@@ -322,6 +324,7 @@ service nova-consoleauth restart
 service nova-scheduler restart
 service nova-conductor restart
 service nova-novncproxy restart
+sleep 10s
 
 source ~/admin-openrc
 openstack compute service list --service nova-compute
@@ -456,6 +459,7 @@ service neutron-linuxbridge-agent restart
 service neutron-dhcp-agent restart
 service neutron-metadata-agent restart
 service neutron-l3-agent restart
+sleep 10s
 
 source ~/admin-openrc
 openstack extension list --network
@@ -525,6 +529,7 @@ service nova-api restart
 service cinder-scheduler restart
 service apache2 restart
 openstack volume service list
+sleep 10s
 
 #
 # Heat
@@ -590,6 +595,7 @@ su -s /bin/sh -c "heat-manage db_sync" heat
 service heat-api restart
 service heat-api-cfn restart
 service heat-engine restart
+sleep 10s
 
 source ~/admin-openrc
 openstack orchestration service list
