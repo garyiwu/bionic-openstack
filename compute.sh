@@ -1,7 +1,10 @@
 #!/bin/bash -x
 
+#export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
+export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
+
 if [ "$#" -ne 1 ]; then
-    export IP_ADDR=$(hostname -i)
+    export IP_ADDR=$(hostname -I)
 else
     export IP_ADDR=$1
 fi
@@ -86,7 +89,6 @@ username = neutron
 password = $NEUTRON_PASS
 EOF
 
-export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
 crudini --merge /etc/neutron/plugins/ml2/linuxbridge_agent.ini <<EOF
 [linux_bridge]
 physical_interface_mappings = provider:$PROVIDER_INTERFACE_NAME

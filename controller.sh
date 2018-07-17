@@ -5,7 +5,7 @@ export PROVIDER_INTERFACE_NAME=enp0s8
 
 
 if [ "$#" -ne 1 ]; then
-    export IP_ADDR=$(hostname -i)
+    export IP_ADDR=$(hostname -I)
 else
     export IP_ADDR=$1
 fi
