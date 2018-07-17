@@ -1,7 +1,11 @@
 #!/bin/bash -x
 
+# need to manually run the following:
+# pvcreate /dev/sdb
+# vgcreate cinder-volumes /dev/sdb
+
 if [ "$#" -ne 1 ]; then
-    export IP_ADDR=$(hostname -i)
+    export IP_ADDR=$(hostname -I | tr -d '[:space:]')
 else
     export IP_ADDR=$1
 fi
@@ -10,14 +14,12 @@ export DEBIAN_FRONTEND=noninteractive
 
 source passwords.sh
 
-apt -y install python3-openstackclient crudini
+apt -y install python-openstackclient crudini
 
 #
 # Cinder
 #
 apt -y install lvm2 thin-provisioning-tools
-pvcreate /dev/sdb1
-vgcreate cinder-volumes /dev/sdb1
 
 apt -y install cinder-volume
 
