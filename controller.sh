@@ -110,6 +110,9 @@ keystone-manage bootstrap --bootstrap-password $ADMIN_PASS \
 sed -i '/ServerRoot/a ServerName controller' /etc/apache2/apache2.conf
 service apache2 restart
 
+sleep 30s
+
+
 cat > ~/admin-openrc <<EOF
 export OS_PROJECT_DOMAIN_NAME=Default
 export OS_USER_DOMAIN_NAME=Default
