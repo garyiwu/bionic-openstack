@@ -1,5 +1,9 @@
 #!/bin/bash -x
 
+# export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
+export PROVIDER_INTERFACE_NAME=enp0s8
+
+
 if [ "$#" -ne 1 ]; then
     export IP_ADDR=$(hostname -i)
 else
@@ -403,7 +407,6 @@ vni_ranges = 1:1000
 enable_ipset = true
 EOF
 
-export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
 crudini --merge /etc/neutron/plugins/ml2/linuxbridge_agent.ini <<EOF
 [linux_bridge]
 physical_interface_mappings = provider:$PROVIDER_INTERFACE_NAME
