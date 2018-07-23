@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 # export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
-export PROVIDER_INTERFACE_NAME=enp0s8
+export PROVIDER_INTERFACE_NAME=enp4s0
 
 
 if [ "$#" -ne 1 ]; then
