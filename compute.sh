@@ -13,13 +13,17 @@ export DEBIAN_FRONTEND=noninteractive
 
 source passwords.sh
 
-apt -y install python-openstackclient crudini
+apt install software-properties-common
+add-apt-repository -y cloud-archive:rocky
+apt update
+apt -y dist-upgrade
+
+
+apt -y install crudini
 
 #
 # Nova
 #
-apt -y install nova-compute
-# Need to do this twice for some reason
 apt -y install nova-compute
 
 crudini --merge /etc/nova/nova.conf <<EOF
@@ -87,6 +91,9 @@ user_domain_name = default
 project_name = service
 username = neutron
 password = $NEUTRON_PASS
+
+[oslo_concurrency]
+lock_path = /var/lib/neutron/tmp
 EOF
 
 crudini --merge /etc/neutron/plugins/ml2/linuxbridge_agent.ini <<EOF

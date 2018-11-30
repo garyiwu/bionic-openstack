@@ -396,6 +396,9 @@ region_name = RegionOne
 project_name = service
 username = nova
 password = $NOVA_PASS
+
+[oslo_concurrency]
+lock_path = /var/lib/neutron/tmp
 EOF
 
 crudini --merge /etc/neutron/plugins/ml2/ml2_conf.ini <<EOF
