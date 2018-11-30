@@ -1,7 +1,8 @@
 #!/bin/bash -x
 
 # export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
-export PROVIDER_INTERFACE_NAME=enp4s0
+# the provider interface is the 2nd interface that doesn't have an IP yet
+export PROVIDER_INTERFACE_NAME=enp0s8
 
 
 if [ "$#" -ne 1 ]; then
@@ -13,6 +14,13 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 
 source passwords.sh
+
+
+apt install software-properties-common
+add-apt-repository -y cloud-archive:rocky
+apt update
+apt -y dist-upgrade
+
 
 apt -y install python-openstackclient crudini
 
@@ -63,34 +71,19 @@ sleep 10s
 # etcd
 #
 apt -y install etcd
-mkdir -p /etc/etcd
-cat > /etc/etcd/etcd.conf.yml <<EOF
-name: controller
-data-dir: /var/lib/etcd
-initial-cluster-state: 'new'
-initial-cluster-token: 'etcd-cluster-01'
-initial-cluster: controller=http://$IP_ADDR:2380
-initial-advertise-peer-urls: http://$IP_ADDR:2380
-advertise-client-urls: http://$IP_ADDR:2379
-listen-peer-urls: http://0.0.0.0:2380
-listen-client-urls: http://$IP_ADDR:2379
+
+cat >> /etc/default/etcd <<EOF
+ETCD_NAME="controller"
+ETCD_DATA_DIR="/var/lib/etcd"
+ETCD_INITIAL_CLUSTER_STATE="new"
+ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster-01"
+ETCD_INITIAL_CLUSTER="controller=http://$IP_ADDR:2380"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http://$IP_ADDR:2380"
+ETCD_ADVERTISE_CLIENT_URLS="http://$IP_ADDR:2379"
+ETCD_LISTEN_PEER_URLS="http://0.0.0.0:2380"
+ETCD_LISTEN_CLIENT_URLS="http://$IP_ADDR:2379"
 EOF
 
-cat > /lib/systemd/system/etcd.service <<EOF
-[Unit]
-After=network.target
-Description=etcd - highly-available key value store
-
-[Service]
-LimitNOFILE=65536
-Restart=on-failure
-Type=notify
-ExecStart=/usr/bin/etcd --config-file /etc/etcd/etcd.conf.yml
-User=etcd
-
-[Install]
-WantedBy=multi-user.target
-EOF
 systemctl enable etcd
 systemctl start etcd
 sleep 10s
@@ -114,7 +107,7 @@ keystone-manage bootstrap --bootstrap-password $ADMIN_PASS \
   --bootstrap-internal-url http://$IP_ADDR:5000/v3/ \
   --bootstrap-public-url http://$IP_ADDR:5000/v3/ \
   --bootstrap-region-id RegionOne
-sed -i '/ServerRoot/a ServerName controller' /etc/apache2/apache2.conf
+sed -i '/#ServerRoot/a ServerName controller' /etc/apache2/apache2.conf
 service apache2 restart
 sleep 10s
 
@@ -247,12 +240,15 @@ mysql -fu root <<EOF
 CREATE DATABASE nova_api;
 CREATE DATABASE nova;
 CREATE DATABASE nova_cell0;
+CREATE DATABASE placement;
 GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'localhost' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'%' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'localhost' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'%' IDENTIFIED BY '$NOVA_DBPASS';
+GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'localhost' IDENTIFIED BY '$PLACEMENT_DBPASS';
+GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'%' IDENTIFIED BY '$PLACEMENT_DBPASS';
 EOF
 
 source ~/admin-openrc
@@ -276,6 +272,9 @@ connection = mysql+pymysql://nova:$NOVA_DBPASS@controller/nova_api
 
 [database]
 connection = mysql+pymysql://nova:$NOVA_DBPASS@controller/nova
+
+[placement_database]
+connection = mysql+pymysql://placement:$PLACEMENT_DBPASS@controller/placement
 
 [DEFAULT]
 transport_url = rabbit://openstack:$RABBIT_PASS@controller
@@ -330,16 +329,16 @@ su -s /bin/sh -c "nova-manage api_db sync" nova
 su -s /bin/sh -c "nova-manage cell_v2 map_cell0" nova
 su -s /bin/sh -c "nova-manage cell_v2 create_cell --name=cell1 --verbose" nova
 su -s /bin/sh -c "nova-manage db sync" nova
-nova-manage cell_v2 list_cells
+su -s /bin/sh -c "nova-manage cell_v2 list_cells" nova
 service nova-api restart
-service nova-consoleauth restart
+#service nova-consoleauth restart
 service nova-scheduler restart
 service nova-conductor restart
 service nova-novncproxy restart
 sleep 10s
 
 source ~/admin-openrc
-openstack compute service list --service nova-compute
+#openstack compute service list --service nova-compute
 openstack compute service list
 openstack catalog list
 openstack image list
@@ -378,6 +377,7 @@ notify_nova_on_port_status_changes = true
 notify_nova_on_port_data_changes = true
 
 [keystone_authtoken]
+www_authenticate_uri = http://controller:5000
 auth_url = http://controller:5000
 memcached_servers = controller:11211
 auth_type = password
