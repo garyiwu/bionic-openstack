@@ -13,8 +13,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 source passwords.sh
 
-apt install software-properties-common
-add-apt-repository -y cloud-archive:rocky
+add-apt-repository -y cloud-archive:pike
 apt update
 apt -y dist-upgrade
 
@@ -71,6 +70,10 @@ EOF
 crudini --del /etc/nova/nova.conf DEFAULT log_dir
 service nova-compute restart
 
+cd /etc
+git commit -a -m "nova config complete"
+cd ~
+
 #
 # Neutron
 #
@@ -124,6 +127,11 @@ password = $NEUTRON_PASS
 EOF
 service nova-compute restart
 service neutron-linuxbridge-agent restart
+
+cd /etc
+git commit -a -m "neutron config complete"
+cd ~
+
 
 cd /etc
 git commit -a -m "initial openstack installation"

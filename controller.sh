@@ -16,7 +16,6 @@ export DEBIAN_FRONTEND=noninteractive
 source passwords.sh
 
 
-apt install software-properties-common
 add-apt-repository -y cloud-archive:pike
 apt update
 apt -y dist-upgrade
@@ -499,6 +498,10 @@ sed -i 's/^[# ]*OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT.*/OPENSTACK_KEYSTONE_MULT
 sed -i 's/^[# ]*OPENSTACK_KEYSTONE_DEFAULT_DOMAIN.*/OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = "Default"/g' /etc/openstack-dashboard/local_settings.py
 sed -i 's/^[# ]*OPENSTACK_KEYSTONE_DEFAULT_ROLE.*/OPENSTACK_KEYSTONE_DEFAULT_ROLE = "user"/g' /etc/openstack-dashboard/local_settings.py
 service apache2 reload
+
+cd /etc
+git commit -a -m "horizon config complete"
+cd ~
 
 #
 # Cinder
