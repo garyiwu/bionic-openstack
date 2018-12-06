@@ -2,7 +2,7 @@
 
 # export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
 # the provider interface is the 2nd interface that doesn't have an IP yet
-export PROVIDER_INTERFACE_NAME=enp0s8
+export PROVIDER_INTERFACE_NAME=eno2
 
 
 if [ "$#" -ne 1 ]; then
@@ -17,7 +17,7 @@ source passwords.sh
 
 
 apt install software-properties-common
-add-apt-repository -y cloud-archive:rocky
+add-apt-repository -y cloud-archive:pike
 apt update
 apt -y dist-upgrade
 
@@ -135,13 +135,15 @@ export OS_IMAGE_API_VERSION=2
 EOF
 
 source ~/admin-openrc
-openstack domain create --description "An Example Domain" example
 openstack project create --domain default --description "Service Project" service
 openstack project create --domain default --description "Demo Project" demo
 openstack user create --domain default --password $DEMO_PASS demo
 openstack role create user
 openstack role add --project demo --user demo user
 openstack token issue
+cd /etc
+git commit -a -m "keystone config complete"
+cd ~
 
 #
 # Glance
@@ -205,6 +207,7 @@ service glance-api restart
 sleep 10s
 
 source ~/admin-openrc
+cd ~
 
 wget http://download.cirros-cloud.net/0.4.0/cirros-0.4.0-x86_64-disk.img -P ~/
 openstack image create "cirros" \
@@ -232,6 +235,9 @@ openstack image create "trusty" \
 
 
 openstack image list
+cd /etc
+git commit -a -m "glance config complete"
+cd ~
 
 #
 # Nova
@@ -240,15 +246,12 @@ mysql -fu root <<EOF
 CREATE DATABASE nova_api;
 CREATE DATABASE nova;
 CREATE DATABASE nova_cell0;
-CREATE DATABASE placement;
 GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'localhost' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'%' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'localhost' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'%' IDENTIFIED BY '$NOVA_DBPASS';
-GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'localhost' IDENTIFIED BY '$PLACEMENT_DBPASS';
-GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'%' IDENTIFIED BY '$PLACEMENT_DBPASS';
 EOF
 
 source ~/admin-openrc
@@ -331,18 +334,21 @@ su -s /bin/sh -c "nova-manage cell_v2 create_cell --name=cell1 --verbose" nova
 su -s /bin/sh -c "nova-manage db sync" nova
 su -s /bin/sh -c "nova-manage cell_v2 list_cells" nova
 service nova-api restart
-#service nova-consoleauth restart
+service nova-consoleauth restart
 service nova-scheduler restart
 service nova-conductor restart
 service nova-novncproxy restart
 sleep 10s
 
 source ~/admin-openrc
-#openstack compute service list --service nova-compute
 openstack compute service list
 openstack catalog list
 openstack image list
 nova-status upgrade check
+
+cd /etc
+git commit -a -m "nova config complete"
+cd ~
 
 #
 # Neutron
@@ -478,6 +484,11 @@ sleep 10s
 source ~/admin-openrc
 openstack extension list --network
 openstack network agent list
+
+cd /etc
+git commit -a -m "neutron config complete"
+cd ~
+
 
 #
 # Horizon
