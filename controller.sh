@@ -497,6 +497,8 @@ sed -i 's/127\.0\.0\.1/controller/g' /etc/openstack-dashboard/local_settings.py
 sed -i 's/^[# ]*OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT.*/OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True/g' /etc/openstack-dashboard/local_settings.py
 sed -i 's/^[# ]*OPENSTACK_KEYSTONE_DEFAULT_DOMAIN.*/OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = "Default"/g' /etc/openstack-dashboard/local_settings.py
 sed -i 's/^[# ]*OPENSTACK_KEYSTONE_DEFAULT_ROLE.*/OPENSTACK_KEYSTONE_DEFAULT_ROLE = "user"/g' /etc/openstack-dashboard/local_settings.py
+sed -i 's|^OPENSTACK_KEYSTONE_URL.*|OPENSTACK_KEYSTONE_URL = "http://%s:5000/v3" % OPENSTACK_HOST|g' /etc/openstack-dashboard/local_settings.py
+sed -i '/#OPENSTACK_API_VERSIONS/a OPENSTACK_API_VERSIONS = { "identity": 3, "image": 2, "volume": 2 }' /etc/openstack-dashboard/local_settings.py
 service apache2 reload
 
 cd /etc
