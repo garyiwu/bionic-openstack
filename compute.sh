@@ -132,6 +132,10 @@ cd /etc
 git commit -a -m "neutron config complete"
 cd ~
 
+# disable libvirt networks
+virsh net-destroy default
+virsh net-autostart --network default --disable
 
 cd /etc
 git commit -a -m "initial openstack installation"
+
