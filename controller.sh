@@ -561,6 +561,10 @@ service apache2 restart
 openstack volume service list
 sleep 10s
 
+cd /etc
+git commit -a -m "cinder config complete"
+cd ~
+
 #
 # Heat
 #
@@ -630,3 +634,6 @@ sleep 10s
 source ~/admin-openrc
 openstack orchestration service list
 
+cd /etc
+git commit -a -m "heat config complete"
+cd ~
