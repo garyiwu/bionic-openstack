@@ -71,6 +71,10 @@ EOF
 crudini --del /etc/nova/nova.conf DEFAULT log_dir
 service nova-compute restart
 
+cd /etc
+git commit -a -m "nova config complete"
+cd ~
+
 #
 # Neutron
 #
@@ -126,4 +130,13 @@ service nova-compute restart
 service neutron-linuxbridge-agent restart
 
 cd /etc
+git commit -a -m "neutron config complete"
+cd ~
+
+# disable libvirt networks
+virsh net-destroy default
+virsh net-autostart --network default --disable
+
+cd /etc
 git commit -a -m "initial openstack installation"
+
