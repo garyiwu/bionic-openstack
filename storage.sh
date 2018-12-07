@@ -14,7 +14,12 @@ export DEBIAN_FRONTEND=noninteractive
 
 source passwords.sh
 
-apt -y install python-openstackclient crudini
+add-apt-repository -y cloud-archive:pike
+apt update
+apt -y dist-upgrade
+
+
+apt -y install crudini
 
 #
 # Cinder
