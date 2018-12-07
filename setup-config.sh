@@ -1,5 +1,34 @@
 #!/bin/bash -x
 
+# download images
+source ~/admin-openrc
+
+wget http://download.cirros-cloud.net/0.4.0/cirros-0.4.0-x86_64-disk.img -P ~/
+openstack image create "cirros" \
+  --file ~/cirros-0.4.0-x86_64-disk.img \
+  --disk-format qcow2 --container-format bare \
+  --public
+
+wget https://cloud-images.ubuntu.com/bionic/current/bionic-server-cloudimg-amd64.img -P ~/
+openstack image create "bionic" \
+  --file ~/bionic-server-cloudimg-amd64.img \
+  --disk-format qcow2 --container-format bare \
+  --public
+
+wget https://cloud-images.ubuntu.com/xenial/current/xenial-server-cloudimg-amd64-disk1.img -P ~/
+openstack image create "xenial" \
+  --file ~/xenial-server-cloudimg-amd64-disk1.img \
+  --disk-format qcow2 --container-format bare \
+  --public
+
+wget https://cloud-images.ubuntu.com/trusty/current/trusty-server-cloudimg-amd64-disk1.img -P ~/
+openstack image create "trusty" \
+  --file ~/trusty-server-cloudimg-amd64-disk1.img \
+  --disk-format qcow2 --container-format bare \
+  --public
+
+openstack image list
+
 #
 # Create networks
 #
