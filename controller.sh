@@ -2,7 +2,7 @@
 
 # export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
 # the provider interface is the 2nd interface that doesn't have an IP yet
-export PROVIDER_INTERFACE_NAME=enp0s8
+export PROVIDER_INTERFACE_NAME=eno2
 
 
 if [ "$#" -ne 1 ]; then
