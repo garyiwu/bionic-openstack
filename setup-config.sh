@@ -1,5 +1,7 @@
 #!/bin/bash -x
 
+# MAKE SURE YOU DISABLE THE DHCP SERVER IN MAAS FIRST!
+
 # download images
 source ~/admin-openrc
 
