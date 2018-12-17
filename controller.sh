@@ -6,7 +6,7 @@ export PROVIDER_INTERFACE_NAME=eno2
 
 
 if [ "$#" -ne 1 ]; then
-    export IP_ADDR=$(hostname -I | tr -d '[:space:]')
+    export IP_ADDR=$(hostname -I | cut -d' ' -f1)
 else
     export IP_ADDR=$1
 fi
