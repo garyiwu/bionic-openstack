@@ -111,3 +111,7 @@ chown -R swift:swift /srv/node
 mkdir -p /var/cache/swift
 chown -R root:swift /var/cache/swift
 chmod -R 775 /var/cache/swift
+
+cd /etc
+git commit -a -m "swift config complete"
+cd ~

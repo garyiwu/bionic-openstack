@@ -697,3 +697,7 @@ delay_auth_decision = True
 use = egg:swift#memcache
 memcache_servers = controller:11211
 EOF
+
+cd /etc
+git commit -a -m "swift config complete"
+cd ~
