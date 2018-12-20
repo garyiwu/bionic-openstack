@@ -2,6 +2,8 @@
 
 # need to manually mount the storage under /srv/node/sdb
 
+# also need to manually copy the swift files from controller:/etc/swift/*.gz into /etc/swift
+
 if [ "$#" -ne 1 ]; then
     export IP_ADDR=$(hostname -I | cut -d' ' -f1)
 else
@@ -115,3 +117,14 @@ chmod -R 775 /var/cache/swift
 cd /etc
 git commit -a -m "swift config complete"
 cd ~
+
+
+# manually copy the swift files from controller:/etc/swift/*.gz into /etc/swift if not yet done
+# manually copy the swift.conf from controller:/etc/swift/swift.conf into /etc/swift if not yet done
+
+cd /etc
+git add -A
+git commit -a -m "swift ring config"
+cd ~
+
+swift-init all start

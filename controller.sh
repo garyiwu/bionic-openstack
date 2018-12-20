@@ -4,6 +4,8 @@
 # the provider interface is the 2nd interface that doesn't have an IP yet
 export PROVIDER_INTERFACE_NAME=eno2
 
+# this sample assumes only a single swift storage node named "storage"; ensure that it exists in /etc/hosts
+export SWIFT_NODE_IP_ADDR=$(getent hosts storage | awk '{ print $1 }')
 
 if [ "$#" -ne 1 ]; then
     export IP_ADDR=$(hostname -I | cut -d' ' -f1)
@@ -701,3 +703,46 @@ EOF
 cd /etc
 git commit -a -m "swift config complete"
 cd ~
+
+# this sample assumes only a single swift storage node named "storage", that has only a single device "sdb"
+cd /etc/swift
+
+swift-ring-builder account.builder create 10 1 1
+swift-ring-builder account.builder add \
+  --region 1 --zone 1 --ip $SWIFT_NODE_IP_ADDR --port 6202 --device sdb --weight 100
+swift-ring-builder account.builder
+swift-ring-builder account.builder rebalance
+
+swift-ring-builder container.builder create 10 1 1
+swift-ring-builder container.builder add \
+  --region 1 --zone 1 --ip $SWIFT_NODE_IP_ADDR --port 6201 --device sdb --weight 100
+swift-ring-builder container.builder
+swift-ring-builder container.builder rebalance
+
+swift-ring-builder object.builder create 10 1 1
+swift-ring-builder object.builder add \
+  --region 1 --zone 1 --ip $SWIFT_NODE_IP_ADDR --port 6200 --device sdb --weight 100
+swift-ring-builder object.builder
+swift-ring-builder object.builder rebalance
+
+curl -o /etc/swift/swift.conf \
+  https://git.openstack.org/cgit/openstack/swift/plain/etc/swift.conf-sample?h=stable/pike
+crudini --merge /etc/swift/swift.conf <<EOF
+[swift-hash]
+swift_hash_path_suffix = $SWIFT_HASH_PATH_SUFFIX
+swift_hash_path_prefix = $SWIFT_HASH_PATH_PREFIX
+
+[storage-policy:0]
+name = Policy-0
+default = yes
+EOF
+
+cd /etc
+git add -A
+git commit -a -m "swift ring config complete"
+cd ~
+
+
+chown -R root:swift /etc/swift
+service memcached restart
+service swift-proxy restart
