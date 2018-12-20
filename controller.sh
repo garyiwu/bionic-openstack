@@ -18,15 +18,15 @@ source passwords.sh
 
 add-apt-repository -y cloud-archive:pike
 apt update
-apt -y dist-upgrade
+apt-get -y dist-upgrade
 
 
-apt -y install python-openstackclient crudini
+apt-get -y install python-openstackclient crudini
 
 #
 # MariaDB
 #
-apt -y install mariadb-server python-pymysql
+apt-get -y install mariadb-server python-pymysql
 
 cat > /etc/mysql/mariadb.conf.d/99-openstack.cnf <<EOF
 [mysqld]
@@ -53,7 +53,7 @@ EOF
 #
 # RabbitMQ
 #
-apt -y install rabbitmq-server
+apt-get -y install rabbitmq-server
 sleep 10s
 rabbitmqctl add_user openstack $RABBIT_PASS
 rabbitmqctl set_permissions openstack ".*" ".*" ".*"
@@ -61,7 +61,7 @@ rabbitmqctl set_permissions openstack ".*" ".*" ".*"
 #
 # Memcached
 #
-apt -y install memcached python-memcache
+apt-get -y install memcached python-memcache
 sed -i "s/127\.0\.0\.1/$IP_ADDR/g" /etc/memcached.conf
 service memcached restart
 sleep 10s
@@ -69,7 +69,7 @@ sleep 10s
 #
 # etcd
 #
-apt -y install etcd
+apt-get -y install etcd
 
 cat >> /etc/default/etcd <<EOF
 ETCD_NAME="controller"
@@ -95,7 +95,7 @@ CREATE DATABASE keystone;
 GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY '$KEYSTONE_DBPASS';
 GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY '$KEYSTONE_DBPASS';
 EOF
-apt -y install keystone  apache2 libapache2-mod-wsgi
+apt-get -y install keystone  apache2 libapache2-mod-wsgi
 crudini --set /etc/keystone/keystone.conf database connection "mysql+pymysql://keystone:$KEYSTONE_DBPASS@controller/keystone"
 crudini --set /etc/keystone/keystone.conf token provider fernet
 su -s /bin/sh -c "keystone-manage db_sync" keystone
@@ -158,7 +158,7 @@ openstack service create --name glance --description "OpenStack Image" image
 openstack endpoint create --region RegionOne image public http://$IP_ADDR:9292
 openstack endpoint create --region RegionOne image internal http://$IP_ADDR:9292
 openstack endpoint create --region RegionOne image admin http://$IP_ADDR:9292
-apt -y install glance
+apt-get -y install glance
 crudini --merge /etc/glance/glance-api.conf <<EOF
 [database]
 connection = mysql+pymysql://glance:$GLANCE_DBPASS@controller/glance
@@ -266,7 +266,7 @@ openstack service create --name placement --description "Placement API" placemen
 openstack endpoint create --region RegionOne placement public http://$IP_ADDR:8778
 openstack endpoint create --region RegionOne placement internal http://$IP_ADDR:8778
 openstack endpoint create --region RegionOne placement admin http://$IP_ADDR:8778
-apt -y install nova-api nova-conductor nova-consoleauth nova-novncproxy nova-scheduler nova-placement-api
+apt-get -y install nova-api nova-conductor nova-consoleauth nova-novncproxy nova-scheduler nova-placement-api
 
 crudini --merge /etc/nova/nova.conf <<EOF
 [api_database]
@@ -364,7 +364,7 @@ openstack service create --name neutron --description "OpenStack Networking" net
 openstack endpoint create --region RegionOne network public http://$IP_ADDR:9696
 openstack endpoint create --region RegionOne network internal http://$IP_ADDR:9696
 openstack endpoint create --region RegionOne network admin http://$IP_ADDR:9696
-apt -y install neutron-server neutron-plugin-ml2 \
+apt-get -y install neutron-server neutron-plugin-ml2 \
   neutron-linuxbridge-agent neutron-l3-agent neutron-dhcp-agent \
   neutron-metadata-agent
 
@@ -492,7 +492,7 @@ cd ~
 #
 # Horizon
 #
-apt -y install openstack-dashboard
+apt-get -y install openstack-dashboard
 sed -i 's/127\.0\.0\.1/controller/g' /etc/openstack-dashboard/local_settings.py
 sed -i 's/^[# ]*OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT.*/OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True/g' /etc/openstack-dashboard/local_settings.py
 sed -i 's/^[# ]*OPENSTACK_KEYSTONE_DEFAULT_DOMAIN.*/OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = "Default"/g' /etc/openstack-dashboard/local_settings.py
@@ -529,7 +529,7 @@ openstack endpoint create --region RegionOne volumev2 admin http://$IP_ADDR:8776
 openstack endpoint create --region RegionOne volumev3 public http://$IP_ADDR:8776/v3/%\(project_id\)s
 openstack endpoint create --region RegionOne volumev3 internal http://$IP_ADDR:8776/v3/%\(project_id\)s
 openstack endpoint create --region RegionOne volumev3 admin http://$IP_ADDR:8776/v3/%\(project_id\)s
-apt -y install cinder-api cinder-scheduler
+apt-get -y install cinder-api cinder-scheduler
 
 crudini --merge /etc/cinder/cinder.conf <<EOF
 [database]
@@ -641,3 +641,59 @@ openstack orchestration service list
 cd /etc
 git commit -a -m "heat config complete"
 cd ~
+
+
+#
+# Swift
+#
+source ~/admin-openrc
+openstack user create --domain default --password $SWIFT_PASS swift
+openstack role add --project service --user swift admin
+openstack service create --name swift --description "OpenStack Object Storage" object-store
+openstack endpoint create --region RegionOne object-store public http://controller:8080/v1/AUTH_%\(project_id\)s
+openstack endpoint create --region RegionOne object-store internal http://controller:8080/v1/AUTH_%\(project_id\)s
+openstack endpoint create --region RegionOne object-store admin http://controller:8080/v1
+
+apt-get -y install swift swift-proxy python-swiftclient \
+  python-keystoneclient python-keystonemiddleware \
+  memcached
+
+mkdir -p /etc/swift
+curl -o /etc/swift/proxy-server.conf https://git.openstack.org/cgit/openstack/swift/plain/etc/proxy-server.conf-sample?h=stable/pike
+cd /etc
+git add swift
+git commit -a -m "swift original config"
+
+crudini --merge /etc/swift/proxy-server.conf <<EOF
+[DEFAULT]
+bind_port = 8080
+user = swift
+swift_dir = /etc/swift
+
+[pipeline:main]
+pipeline = catch_errors gatekeeper healthcheck proxy-logging cache container_sync bulk ratelimit authtoken keystoneauth container-quotas account-quotas slo dlo versioned_writes proxy-logging proxy-server
+
+[app:proxy-server]
+use = egg:swift#proxy
+account_autocreate = True
+
+[filter:keystoneauth]
+use = egg:swift#keystoneauth
+operator_roles = admin,user
+
+[filter:authtoken]
+paste.filter_factory = keystonemiddleware.auth_token:filter_factory
+auth_url = http://controller:5000
+memcached_servers = controller:11211
+auth_type = password
+project_domain_id = default
+user_domain_id = default
+project_name = service
+username = swift
+password = $SWIFT_PASS
+delay_auth_decision = True
+
+[filter:cache]
+use = egg:swift#memcache
+memcache_servers = controller:11211
+EOF
