@@ -279,7 +279,7 @@ connection = mysql+pymysql://nova:$NOVA_DBPASS@controller/nova
 [DEFAULT]
 transport_url = rabbit://openstack:$RABBIT_PASS@controller
 my_ip = $IP_ADDR
-use_neutron = True
+use_neutron = true
 firewall_driver = nova.virt.firewall.NoopFirewallDriver
 
 [api]
@@ -337,7 +337,6 @@ service nova-novncproxy restart
 sleep 10s
 
 source ~/admin-openrc
-#openstack compute service list --service nova-compute
 openstack compute service list
 openstack catalog list
 openstack image list

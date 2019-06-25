@@ -13,24 +13,24 @@ export DEBIAN_FRONTEND=noninteractive
 
 source passwords.sh
 
-apt install software-properties-common
+apt-get install software-properties-common
 add-apt-repository -y cloud-archive:stein
-apt update
-apt -y dist-upgrade
+apt-get update
+apt-get -y dist-upgrade
 
 
-apt -y install crudini
+apt-get -y install crudini
 
 #
 # Nova
 #
-apt -y install nova-compute
+apt-get -y install nova-compute
 
 crudini --merge /etc/nova/nova.conf <<EOF
 [DEFAULT]
 transport_url = rabbit://openstack:$RABBIT_PASS@controller
 my_ip = $IP_ADDR
-use_neutron = True
+use_neutron = true
 firewall_driver = nova.virt.firewall.NoopFirewallDriver
 
 [api]
@@ -47,7 +47,7 @@ username = nova
 password = $NOVA_PASS
 
 [vnc]
-enabled = True
+enabled = true
 server_listen = 0.0.0.0
 server_proxyclient_address = \$my_ip
 novncproxy_base_url = http://controller:6080/vnc_auto.html
@@ -78,7 +78,7 @@ cd ~
 #
 # Neutron
 #
-apt -y install neutron-linuxbridge-agent
+apt-get -y install neutron-linuxbridge-agent
 
 crudini --del /etc/neutron/neutron.conf database connection
 crudini --merge /etc/neutron/neutron.conf <<EOF
