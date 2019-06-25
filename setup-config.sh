@@ -49,12 +49,12 @@ openstack subnet create --network selfservice \
   --dns-nameserver 75.75.75.75 --gateway 172.16.1.1 \
   --subnet-range 172.16.1.0/24 selfservice
 openstack router create router
-neutron router-interface-add router selfservice
-neutron router-gateway-set router provider
+openstack router add subnet router selfservice
+openstack router set router --external-gateway provider
 
 source ~/admin-openrc
 ip netns
-neutron router-port-list router
+openstack port list --router router
 
 #
 # Basic setup
