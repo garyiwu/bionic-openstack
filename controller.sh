@@ -205,6 +205,45 @@ su -s /bin/sh -c "glance-manage db_sync" glance
 service glance-api restart
 sleep 10s
 
+#
+# Placement
+#
+mysql -fu root <<EOF
+CREATE DATABASE placement;
+GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'localhost' IDENTIFIED BY '$PLACEMENT_DBPASS';
+GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'%' IDENTIFIED BY '$PLACEMENT_DBPASS';
+EOF
+
+source ~/admin-openrc
+openstack user create --domain default --password $PLACEMENT_PASS placement
+openstack role add --project service --user placement admin
+openstack service create --name placement --description "Placement API" placement
+openstack endpoint create --region RegionOne placement public http://$IP_ADDR:8778
+openstack endpoint create --region RegionOne placement internal http://$IP_ADDR:8778
+openstack endpoint create --region RegionOne placement admin http://$IP_ADDR:8778
+apt-get -y install placement-api
+
+crudini --merge /etc/placement/placement.conf <<EOF
+[placement_database]
+connection = mysql+pymysql://placement:$PLACEMENT_DBPASS@controller/placement
+
+[api]
+auth_strategy = keystone
+
+[keystone_authtoken]
+auth_url = http://controller:5000/v3
+memcached_servers = controller:11211
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+project_name = service
+username = placement
+password = $PLACEMENT_PASS
+EOF
+
+su -s /bin/sh -c "placement-manage db sync" placement
+service apache2 restart
+sleep 10s
 
 #
 # Nova
@@ -213,15 +252,12 @@ mysql -fu root <<EOF
 CREATE DATABASE nova_api;
 CREATE DATABASE nova;
 CREATE DATABASE nova_cell0;
-CREATE DATABASE placement;
 GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'localhost' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova_api.* TO 'nova'@'%' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'localhost' IDENTIFIED BY '$NOVA_DBPASS';
 GRANT ALL PRIVILEGES ON nova_cell0.* TO 'nova'@'%' IDENTIFIED BY '$NOVA_DBPASS';
-GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'localhost' IDENTIFIED BY '$PLACEMENT_DBPASS';
-GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'%' IDENTIFIED BY '$PLACEMENT_DBPASS';
 EOF
 
 source ~/admin-openrc
@@ -231,13 +267,7 @@ openstack service create --name nova --description "OpenStack Compute" compute
 openstack endpoint create --region RegionOne compute public http://$IP_ADDR:8774/v2.1
 openstack endpoint create --region RegionOne compute internal http://$IP_ADDR:8774/v2.1
 openstack endpoint create --region RegionOne compute admin http://$IP_ADDR:8774/v2.1
-openstack user create --domain default --password $PLACEMENT_PASS placement
-openstack role add --project service --user placement admin
-openstack service create --name placement --description "Placement API" placement
-openstack endpoint create --region RegionOne placement public http://$IP_ADDR:8778
-openstack endpoint create --region RegionOne placement internal http://$IP_ADDR:8778
-openstack endpoint create --region RegionOne placement admin http://$IP_ADDR:8778
-apt-get -y install nova-api nova-conductor nova-consoleauth nova-novncproxy nova-scheduler nova-placement-api
+apt-get -y install nova-api nova-conductor nova-novncproxy nova-scheduler
 
 crudini --merge /etc/nova/nova.conf <<EOF
 [api_database]
@@ -245,9 +275,6 @@ connection = mysql+pymysql://nova:$NOVA_DBPASS@controller/nova_api
 
 [database]
 connection = mysql+pymysql://nova:$NOVA_DBPASS@controller/nova
-
-[placement_database]
-connection = mysql+pymysql://placement:$PLACEMENT_DBPASS@controller/placement
 
 [DEFAULT]
 transport_url = rabbit://openstack:$RABBIT_PASS@controller
@@ -304,7 +331,6 @@ su -s /bin/sh -c "nova-manage cell_v2 create_cell --name=cell1 --verbose" nova
 su -s /bin/sh -c "nova-manage db sync" nova
 su -s /bin/sh -c "nova-manage cell_v2 list_cells" nova
 service nova-api restart
-#service nova-consoleauth restart
 service nova-scheduler restart
 service nova-conductor restart
 service nova-novncproxy restart
