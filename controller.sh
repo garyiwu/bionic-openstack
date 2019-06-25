@@ -616,5 +616,5 @@ sleep 10s
 source ~/admin-openrc
 openstack orchestration service list
 
-apt-get -y install python-heat-dashboard
+apt-get -y install python3-heat-dashboard
 service apache2 restart
