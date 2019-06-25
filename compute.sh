@@ -14,7 +14,7 @@ export DEBIAN_FRONTEND=noninteractive
 source passwords.sh
 
 apt install software-properties-common
-add-apt-repository -y cloud-archive:rocky
+add-apt-repository -y cloud-archive:stein
 apt update
 apt -y dist-upgrade
 
@@ -139,4 +139,3 @@ virsh net-autostart --network default --disable
 
 cd /etc
 git commit -a -m "initial openstack installation"
-

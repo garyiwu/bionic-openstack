@@ -14,6 +14,11 @@ export DEBIAN_FRONTEND=noninteractive
 
 source passwords.sh
 
+apt install software-properties-common
+add-apt-repository -y cloud-archive:stein
+apt update
+apt -y dist-upgrade
+
 apt -y install python-openstackclient crudini
 
 #

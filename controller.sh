@@ -16,18 +16,18 @@ export DEBIAN_FRONTEND=noninteractive
 source passwords.sh
 
 
-apt install software-properties-common
-add-apt-repository -y cloud-archive:rocky
-apt update
-apt -y dist-upgrade
+apt-get install software-properties-common
+add-apt-repository -y cloud-archive:stein
+apt-get update
+apt-get -y dist-upgrade
 
 
-apt -y install python-openstackclient crudini
+apt-get -y install python3-openstackclient crudini
 
 #
 # MariaDB
 #
-apt -y install mariadb-server python-pymysql
+apt-get -y install mariadb-server python3-pymysql
 
 cat > /etc/mysql/mariadb.conf.d/99-openstack.cnf <<EOF
 [mysqld]
@@ -54,7 +54,7 @@ EOF
 #
 # RabbitMQ
 #
-apt -y install rabbitmq-server
+apt-get -y install rabbitmq-server
 sleep 10s
 rabbitmqctl add_user openstack $RABBIT_PASS
 rabbitmqctl set_permissions openstack ".*" ".*" ".*"
@@ -62,7 +62,7 @@ rabbitmqctl set_permissions openstack ".*" ".*" ".*"
 #
 # Memcached
 #
-apt -y install memcached python-memcache
+apt-get -y install memcached python3-memcache
 sed -i "s/127\.0\.0\.1/$IP_ADDR/g" /etc/memcached.conf
 service memcached restart
 sleep 10s
@@ -70,7 +70,7 @@ sleep 10s
 #
 # etcd
 #
-apt -y install etcd
+apt-get -y install etcd
 
 cat >> /etc/default/etcd <<EOF
 ETCD_NAME="controller"
@@ -96,7 +96,7 @@ CREATE DATABASE keystone;
 GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY '$KEYSTONE_DBPASS';
 GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY '$KEYSTONE_DBPASS';
 EOF
-apt -y install keystone  apache2 libapache2-mod-wsgi
+apt-get -y install keystone apache2 libapache2-mod-wsgi-py3
 crudini --set /etc/keystone/keystone.conf database connection "mysql+pymysql://keystone:$KEYSTONE_DBPASS@controller/keystone"
 crudini --set /etc/keystone/keystone.conf token provider fernet
 su -s /bin/sh -c "keystone-manage db_sync" keystone
@@ -157,12 +157,13 @@ openstack service create --name glance --description "OpenStack Image" image
 openstack endpoint create --region RegionOne image public http://$IP_ADDR:9292
 openstack endpoint create --region RegionOne image internal http://$IP_ADDR:9292
 openstack endpoint create --region RegionOne image admin http://$IP_ADDR:9292
-apt -y install glance
+apt-get -y install glance
 crudini --merge /etc/glance/glance-api.conf <<EOF
 [database]
 connection = mysql+pymysql://glance:$GLANCE_DBPASS@controller/glance
 
 [keystone_authtoken]
+www_authenticate_uri = http://controller:5000
 auth_url = http://controller:5000
 memcached_servers = controller:11211
 auth_type = password
@@ -186,6 +187,7 @@ crudini --merge /etc/glance/glance-registry.conf <<EOF
 connection = mysql+pymysql://glance:$GLANCE_DBPASS@controller/glance
 
 [keystone_authtoken]
+www_authenticate_uri = http://controller:5000
 auth_url = http://controller:5000
 memcached_servers = controller:11211
 auth_type = password
@@ -200,7 +202,6 @@ flavor = keystone
 EOF
 
 su -s /bin/sh -c "glance-manage db_sync" glance
-service glance-registry restart
 service glance-api restart
 sleep 10s
 
@@ -236,7 +237,7 @@ openstack service create --name placement --description "Placement API" placemen
 openstack endpoint create --region RegionOne placement public http://$IP_ADDR:8778
 openstack endpoint create --region RegionOne placement internal http://$IP_ADDR:8778
 openstack endpoint create --region RegionOne placement admin http://$IP_ADDR:8778
-apt -y install nova-api nova-conductor nova-consoleauth nova-novncproxy nova-scheduler nova-placement-api
+apt-get -y install nova-api nova-conductor nova-consoleauth nova-novncproxy nova-scheduler nova-placement-api
 
 crudini --merge /etc/nova/nova.conf <<EOF
 [api_database]
@@ -331,7 +332,7 @@ openstack service create --name neutron --description "OpenStack Networking" net
 openstack endpoint create --region RegionOne network public http://$IP_ADDR:9696
 openstack endpoint create --region RegionOne network internal http://$IP_ADDR:9696
 openstack endpoint create --region RegionOne network admin http://$IP_ADDR:9696
-apt -y install neutron-server neutron-plugin-ml2 \
+apt-get -y install neutron-server neutron-plugin-ml2 \
   neutron-linuxbridge-agent neutron-l3-agent neutron-dhcp-agent \
   neutron-metadata-agent
 
@@ -454,7 +455,7 @@ openstack network agent list
 #
 # Horizon
 #
-apt -y install openstack-dashboard
+apt-get -y install openstack-dashboard
 sed -i 's/127\.0\.0\.1/controller/g' /etc/openstack-dashboard/local_settings.py
 sed -i 's/^[# ]*OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT.*/OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True/g' /etc/openstack-dashboard/local_settings.py
 sed -i 's/^[# ]*OPENSTACK_KEYSTONE_DEFAULT_DOMAIN.*/OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = "Default"/g' /etc/openstack-dashboard/local_settings.py
@@ -485,7 +486,7 @@ openstack endpoint create --region RegionOne volumev2 admin http://$IP_ADDR:8776
 openstack endpoint create --region RegionOne volumev3 public http://$IP_ADDR:8776/v3/%\(project_id\)s
 openstack endpoint create --region RegionOne volumev3 internal http://$IP_ADDR:8776/v3/%\(project_id\)s
 openstack endpoint create --region RegionOne volumev3 admin http://$IP_ADDR:8776/v3/%\(project_id\)s
-apt -y install cinder-api cinder-scheduler
+apt-get -y install cinder-api cinder-scheduler
 
 crudini --merge /etc/cinder/cinder.conf <<EOF
 [database]
@@ -590,6 +591,5 @@ sleep 10s
 source ~/admin-openrc
 openstack orchestration service list
 
-apt -y install python-heat-dashboard
+apt-get -y install python-heat-dashboard
 service apache2 restart
-
