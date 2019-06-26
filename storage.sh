@@ -19,7 +19,7 @@ add-apt-repository -y cloud-archive:stein
 apt update
 apt -y dist-upgrade
 
-apt -y install python-openstackclient crudini
+apt -y install crudini
 
 #
 # Cinder
