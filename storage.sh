@@ -40,6 +40,7 @@ enabled_backends = lvm
 glance_api_servers = http://controller:9292
 
 [keystone_authtoken]
+www_authenticate_uri = http://controller:5000
 auth_url = http://controller:5000
 memcached_servers = controller:11211
 auth_type = password
