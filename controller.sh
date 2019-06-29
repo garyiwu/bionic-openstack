@@ -661,7 +661,7 @@ apt-get -y install swift swift-proxy python-swiftclient \
   memcached
 
 mkdir -p /etc/swift
-curl -o /etc/swift/proxy-server.conf https://git.openstack.org/cgit/openstack/swift/plain/etc/proxy-server.conf-sample?h=stable/pike
+curl -L -o /etc/swift/proxy-server.conf https://git.openstack.org/cgit/openstack/swift/plain/etc/proxy-server.conf-sample?h=stable/pike
 cd /etc
 git add swift
 git commit -a -m "swift original config"
@@ -725,7 +725,7 @@ swift-ring-builder object.builder add \
 swift-ring-builder object.builder
 swift-ring-builder object.builder rebalance
 
-curl -o /etc/swift/swift.conf \
+curl -L -o /etc/swift/swift.conf \
   https://git.openstack.org/cgit/openstack/swift/plain/etc/swift.conf-sample?h=stable/pike
 crudini --merge /etc/swift/swift.conf <<EOF
 [swift-hash]
