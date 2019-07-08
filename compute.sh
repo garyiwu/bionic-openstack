@@ -79,7 +79,9 @@ cd ~
 #
 apt -y install neutron-linuxbridge-agent
 
-crudini --del /etc/neutron/neutron.conf database connection
+# commented out to run compute on controller
+# crudini --del /etc/neutron/neutron.conf database connection
+
 crudini --merge /etc/neutron/neutron.conf <<EOF
 [DEFAULT]
 transport_url = rabbit://openstack:$RABBIT_PASS@controller
@@ -138,4 +140,3 @@ virsh net-autostart --network default --disable
 
 cd /etc
 git commit -a -m "initial openstack installation"
-
