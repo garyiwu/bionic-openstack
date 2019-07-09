@@ -61,7 +61,7 @@ volume_clear_size=50
 
 [nfs]
 volume_driver = cinder.volume.drivers.nfs.NfsDriver
-nas_host = localhost
+nas_host = controller
 nas_share_path = /cinder-volumes
 nas_secure_file_permissions = False
 
