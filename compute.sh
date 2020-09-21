@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 #export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
-export PROVIDER_INTERFACE_NAME=eno2
+export PROVIDER_INTERFACE_NAME=enp1s0f0
 
 if [ "$#" -ne 1 ]; then
     export IP_ADDR=$(hostname -I | tr -d '[:space:]')
@@ -13,7 +13,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 source passwords.sh
 
-apt -y install python-openstackclient crudini
+apt -y install python3-openstackclient crudini
 
 #
 # Nova
@@ -88,6 +88,9 @@ user_domain_name = default
 project_name = service
 username = neutron
 password = $NEUTRON_PASS
+
+[oslo_concurrency]
+lock_path = /var/lib/neutron/tmp
 EOF
 
 crudini --merge /etc/neutron/plugins/ml2/linuxbridge_agent.ini <<EOF
