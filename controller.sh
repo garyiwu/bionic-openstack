@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 # export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
-export PROVIDER_INTERFACE_NAME=enp4s0
+export PROVIDER_INTERFACE_NAME=enp0s31f6
 
 
 if [ "$#" -ne 1 ]; then
@@ -12,9 +12,11 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 
+add-apt-repository cloud-archive:ussuri
+
 source passwords.sh
 
-apt -y install python-openstackclient crudini
+apt -y install python3-openstackclient crudini
 
 #
 # MariaDB
@@ -63,37 +65,21 @@ sleep 10s
 # etcd
 #
 apt -y install etcd
-mkdir -p /etc/etcd
-cat > /etc/etcd/etcd.conf.yml <<EOF
-name: controller
-data-dir: /var/lib/etcd
-initial-cluster-state: 'new'
-initial-cluster-token: 'etcd-cluster-01'
-initial-cluster: controller=http://$IP_ADDR:2380
-initial-advertise-peer-urls: http://$IP_ADDR:2380
-advertise-client-urls: http://$IP_ADDR:2379
-listen-peer-urls: http://0.0.0.0:2380
-listen-client-urls: http://$IP_ADDR:2379
+cat >> /etc/default/etcd <<EOF
+ETCD_NAME="controller"
+ETCD_DATA_DIR="/var/lib/etcd"
+ETCD_INITIAL_CLUSTER_STATE="new"
+ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster-01"
+ETCD_INITIAL_CLUSTER="controller=http://$IP_ADDR:2380"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http://$IP_ADDR:2380"
+ETCD_ADVERTISE_CLIENT_URLS="http://$IP_ADDR:2379"
+ETCD_LISTEN_PEER_URLS="http://0.0.0.0:2380"
+ETCD_LISTEN_CLIENT_URLS="http://$IP_ADDR:2379"
 EOF
 
-cat > /lib/systemd/system/etcd.service <<EOF
-[Unit]
-After=network.target
-Description=etcd - highly-available key value store
-
-[Service]
-LimitNOFILE=65536
-Restart=on-failure
-Type=notify
-ExecStart=/usr/bin/etcd --config-file /etc/etcd/etcd.conf.yml
-User=etcd
-
-[Install]
-WantedBy=multi-user.target
-EOF
 systemctl enable etcd
-systemctl start etcd
-sleep 10s
+systemctl restart etcd
+
 
 #
 # Keystone
@@ -103,7 +89,7 @@ CREATE DATABASE keystone;
 GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY '$KEYSTONE_DBPASS';
 GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY '$KEYSTONE_DBPASS';
 EOF
-apt -y install keystone  apache2 libapache2-mod-wsgi
+apt -y install keystone
 crudini --set /etc/keystone/keystone.conf database connection "mysql+pymysql://keystone:$KEYSTONE_DBPASS@controller/keystone"
 crudini --set /etc/keystone/keystone.conf token provider fernet
 su -s /bin/sh -c "keystone-manage db_sync" keystone
@@ -207,7 +193,6 @@ flavor = keystone
 EOF
 
 su -s /bin/sh -c "glance-manage db_sync" glance
-service glance-registry restart
 service glance-api restart
 sleep 10s
 
@@ -216,6 +201,12 @@ source ~/admin-openrc
 wget http://download.cirros-cloud.net/0.4.0/cirros-0.4.0-x86_64-disk.img -P ~/
 openstack image create "cirros" \
   --file ~/cirros-0.4.0-x86_64-disk.img \
+  --disk-format qcow2 --container-format bare \
+  --public
+
+wget https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img -P ~/
+openstack image create "focal" \
+  --file ~/focal-server-cloudimg-amd64.img \
   --disk-format qcow2 --container-format bare \
   --public
 
@@ -240,6 +231,45 @@ openstack image create "trusty" \
 
 openstack image list
 
+
+#
+# Placement
+#
+source ~/admin-openrc
+mysql -fu root <<EOF
+CREATE DATABASE placement;
+GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'localhost' IDENTIFIED BY '$PLACEMENT_DBPASS';
+GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'%' IDENTIFIED BY '$PLACEMENT_DBPASS';
+EOF
+openstack user create --domain default --password $PLACEMENT_PASS placement
+openstack role add --project service --user placement admin
+openstack service create --name placement --description "Placement API" placement
+openstack endpoint create --region RegionOne placement public http://$IP_ADDR:8778
+openstack endpoint create --region RegionOne placement internal http://$IP_ADDR:8778
+openstack endpoint create --region RegionOne placement admin http://$IP_ADDR:8778
+apt -y install placement-api
+
+crudini --merge /etc/placement/placement.conf <<EOF
+[placement_database]
+connection = mysql+pymysql://placement:$PLACEMENT_DBPASS@controller/placement
+
+[api]
+auth_strategy = keystone
+
+[keystone_authtoken]
+auth_url = http://controller:5000/v3
+memcached_servers = controller:11211
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = placement
+password = $PLACEMENT_PASS
+EOF
+su -s /bin/sh -c "placement-manage db sync" placement
+service apache2 restart
+
+
 #
 # Nova
 #
@@ -262,13 +292,7 @@ openstack service create --name nova --description "OpenStack Compute" compute
 openstack endpoint create --region RegionOne compute public http://$IP_ADDR:8774/v2.1
 openstack endpoint create --region RegionOne compute internal http://$IP_ADDR:8774/v2.1
 openstack endpoint create --region RegionOne compute admin http://$IP_ADDR:8774/v2.1
-openstack user create --domain default --password $PLACEMENT_PASS placement
-openstack role add --project service --user placement admin
-openstack service create --name placement --description "Placement API" placement
-openstack endpoint create --region RegionOne placement public http://$IP_ADDR:8778
-openstack endpoint create --region RegionOne placement internal http://$IP_ADDR:8778
-openstack endpoint create --region RegionOne placement admin http://$IP_ADDR:8778
-apt -y install nova-api nova-conductor nova-consoleauth nova-novncproxy nova-scheduler nova-placement-api
+apt -y install nova-api nova-conductor nova-novncproxy nova-scheduler
 
 crudini --merge /etc/nova/nova.conf <<EOF
 [api_database]
@@ -330,9 +354,8 @@ su -s /bin/sh -c "nova-manage api_db sync" nova
 su -s /bin/sh -c "nova-manage cell_v2 map_cell0" nova
 su -s /bin/sh -c "nova-manage cell_v2 create_cell --name=cell1 --verbose" nova
 su -s /bin/sh -c "nova-manage db sync" nova
-nova-manage cell_v2 list_cells
+su -s /bin/sh -c "nova-manage cell_v2 list_cells" nova
 service nova-api restart
-service nova-consoleauth restart
 service nova-scheduler restart
 service nova-conductor restart
 service nova-novncproxy restart
@@ -613,4 +636,3 @@ openstack orchestration service list
 
 apt -y install python-heat-dashboard
 service apache2 restart
-
