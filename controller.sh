@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 # export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
-export PROVIDER_INTERFACE_NAME=enp0s31f6
+export PROVIDER_INTERFACE_NAME=enp1s0f0
 
 
 if [ "$#" -ne 1 ]; then
@@ -19,8 +19,12 @@ source passwords.sh
 apt -y install python3-openstackclient crudini
 
 #
-# MariaDB
+# MariaDB 10.3
 #
+apt-get -y install software-properties-common
+apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
+add-apt-repository 'deb [arch=amd64,arm64,ppc64el] http://www.ftp.saix.net/DB/mariadb/repo/10.3/ubuntu bionic main'
+apt-get update
 apt -y install mariadb-server python-pymysql
 
 cat > /etc/mysql/mariadb.conf.d/99-openstack.cnf <<EOF
@@ -504,9 +508,26 @@ openstack network agent list
 #
 apt -y install openstack-dashboard
 sed -i 's/127\.0\.0\.1/controller/g' /etc/openstack-dashboard/local_settings.py
-sed -i 's/^[# ]*OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT.*/OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True/g' /etc/openstack-dashboard/local_settings.py
-sed -i 's/^[# ]*OPENSTACK_KEYSTONE_DEFAULT_DOMAIN.*/OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = "Default"/g' /etc/openstack-dashboard/local_settings.py
-sed -i 's/^[# ]*OPENSTACK_KEYSTONE_DEFAULT_ROLE.*/OPENSTACK_KEYSTONE_DEFAULT_ROLE = "user"/g' /etc/openstack-dashboard/local_settings.py
+sed -i '/^[# ]*OPENSTACK_KEYSTONE_URL/d' /etc/openstack-dashboard/local_settings.py
+cat >> /etc/openstack-dashboard/local_settings.py <<EOF
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+
+CACHES = {
+    'default': {
+         'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+         'LOCATION': 'controller:11211',
+    }
+}
+OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = True
+OPENSTACK_API_VERSIONS = {
+    "identity": 3,
+    "image": 2,
+    "volume": 3,
+}
+OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = "Default"
+OPENSTACK_KEYSTONE_DEFAULT_ROLE = "user"
+OPENSTACK_KEYSTONE_URL = "http://%s:5000/identity/v3" % OPENSTACK_HOST
+EOF
 service apache2 reload
 
 #
