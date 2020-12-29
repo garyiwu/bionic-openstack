@@ -56,7 +56,7 @@ rabbitmqctl set_permissions openstack ".*" ".*" ".*"
 # Memcached
 #
 apt -y install memcached python3-memcache
-sed -i "s/127\.0\.0\.1/$IP_ADDR/g" /etc/memcached.conf
+sed -i "s/127\.0\.0\.1/0.0.0.0/g" /etc/memcached.conf
 systemctl enable memcached.service
 systemctl start memcached.service
 sleep 10s
@@ -74,7 +74,7 @@ ETCD_INITIAL_CLUSTER="controller=http://$IP_ADDR:2380"
 ETCD_INITIAL_ADVERTISE_PEER_URLS="http://$IP_ADDR:2380"
 ETCD_ADVERTISE_CLIENT_URLS="http://$IP_ADDR:2379"
 ETCD_LISTEN_PEER_URLS="http://0.0.0.0:2380"
-ETCD_LISTEN_CLIENT_URLS="http://$IP_ADDR:2379"
+ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
 EOF
 
 systemctl enable etcd
