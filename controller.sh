@@ -57,7 +57,8 @@ rabbitmqctl set_permissions openstack ".*" ".*" ".*"
 #
 apt -y install memcached python3-memcache
 sed -i "s/127\.0\.0\.1/$IP_ADDR/g" /etc/memcached.conf
-service memcached restart
+systemctl enable memcached.service
+systemctl start memcached.service
 sleep 10s
 
 #
