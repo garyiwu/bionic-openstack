@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 # export PROVIDER_INTERFACE_NAME=$(ip -o -4 route show to default | awk '{print $5}')
-export PROVIDER_INTERFACE_NAME=enp1s0f0
+export PROVIDER_INTERFACE_NAME=eno1
 
 
 if [ "$#" -ne 1 ]; then
@@ -12,8 +12,6 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 
-add-apt-repository cloud-archive:ussuri
-
 source passwords.sh
 
 apt -y install python3-openstackclient crudini
@@ -22,10 +20,7 @@ apt -y install python3-openstackclient crudini
 # MariaDB 10.3
 #
 apt-get -y install software-properties-common
-apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
-add-apt-repository 'deb [arch=amd64,arm64,ppc64el] http://www.ftp.saix.net/DB/mariadb/repo/10.3/ubuntu bionic main'
-apt-get update
-apt -y install mariadb-server python-pymysql
+apt -y install mariadb-server python3-pymysql
 
 cat > /etc/mysql/mariadb.conf.d/99-openstack.cnf <<EOF
 [mysqld]
@@ -60,7 +55,7 @@ rabbitmqctl set_permissions openstack ".*" ".*" ".*"
 #
 # Memcached
 #
-apt -y install memcached python-memcache
+apt -y install memcached python3-memcache
 sed -i "s/127\.0\.0\.1/$IP_ADDR/g" /etc/memcached.conf
 service memcached restart
 sleep 10s
@@ -658,5 +653,5 @@ sleep 10s
 source ~/admin-openrc
 openstack orchestration service list
 
-apt -y install python-heat-dashboard
+apt -y install python3-heat-dashboard
 service apache2 restart
