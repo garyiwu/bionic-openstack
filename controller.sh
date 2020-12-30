@@ -572,6 +572,9 @@ password = $CINDER_PASS
 
 [oslo_concurrency]
 lock_path = /var/lib/cinder/tmp
+
+[lvm]
+volume_clear_size = 50
 EOF
 su -s /bin/sh -c "cinder-manage db sync" cinder
 
