@@ -292,7 +292,7 @@ openstack service create --name nova --description "OpenStack Compute" compute
 openstack endpoint create --region RegionOne compute public http://$IP_ADDR:8774/v2.1
 openstack endpoint create --region RegionOne compute internal http://$IP_ADDR:8774/v2.1
 openstack endpoint create --region RegionOne compute admin http://$IP_ADDR:8774/v2.1
-apt -y install nova-api nova-conductor nova-novncproxy nova-scheduler
+apt -y install nova-api nova-conductor nova-novncproxy nova-scheduler python3-etcd3gw
 
 crudini --merge /etc/nova/nova.conf <<EOF
 [api_database]
@@ -347,7 +347,7 @@ discover_hosts_in_cells_interval = 300
 
 [filter_scheduler]
 available_filters = nova.scheduler.filters.all_filters
-enabled_filters = RetryFilter, AvailabilityZoneFilter, ComputeFilter, ComputeCapabilitiesFilter, ImagePropertiesFilter, ServerGroupAntiAffinityFilter, ServerGroupAffinityFilter, NUMATopologyFilter, AggregateInstanceExtraSpecsFilter
+enabled_filters = AvailabilityZoneFilter, ComputeFilter, ComputeCapabilitiesFilter, ImagePropertiesFilter, ServerGroupAntiAffinityFilter, ServerGroupAffinityFilter, NUMATopologyFilter, AggregateInstanceExtraSpecsFilter
 EOF
 crudini --del /etc/nova/nova.conf DEFAULT log_dir
 su -s /bin/sh -c "nova-manage api_db sync" nova
@@ -614,7 +614,7 @@ openstack role add --domain heat --user-domain heat --user heat_domain_admin adm
 openstack role create heat_stack_owner
 openstack role add --project demo --user demo heat_stack_owner
 openstack role create heat_stack_user
-apt-get -y install heat-api heat-api-cfn heat-engine
+apt-get -y install heat-api heat-api-cfn heat-engine python3-vitrageclient python3-zunclient
 
 crudini --merge /etc/heat/heat.conf <<EOF
 [database]
